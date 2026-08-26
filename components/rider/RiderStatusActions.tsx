@@ -6,7 +6,8 @@ import StatusBadge from "@/components/ui/StatusBadge";
 import type { DeliveryStatus } from "@/lib/delivery";
 
 type RiderStatusActionsProps = {
-  initialStatus: DeliveryStatus;
+  status: DeliveryStatus;
+  onStatusChange: (status: DeliveryStatus) => void;
 };
 
 const nextStatusMap: Partial<
@@ -26,13 +27,10 @@ const buttonLabels: Partial<
 };
 
 export default function RiderStatusActions({
-  initialStatus,
+  status,
+  onStatusChange,
 }: RiderStatusActionsProps) {
-  const [status, setStatus] =
-    useState<DeliveryStatus>(initialStatus);
-
-  const [message, setMessage] =
-    useState("");
+  const [message, setMessage] = useState("");
 
   const nextStatus = nextStatusMap[status];
 
@@ -41,12 +39,10 @@ export default function RiderStatusActions({
       return;
     }
 
-    setStatus(nextStatus);
+    onStatusChange(nextStatus);
 
     setMessage(
-      `Delivery status updated to ${formatStatus(
-        nextStatus
-      )}.`
+      `Delivery updated to ${formatStatus(nextStatus)}.`
     );
   }
 
@@ -59,9 +55,7 @@ export default function RiderStatusActions({
           </p>
 
           <div className="mt-2">
-            <StatusBadge
-              status={status}
-            />
+            <StatusBadge status={status} />
           </div>
         </div>
 
@@ -77,7 +71,7 @@ export default function RiderStatusActions({
       </div>
 
       {message && (
-        <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+        <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
           <p className="text-sm font-semibold text-emerald-800">
             ✓ Status updated
           </p>
@@ -85,25 +79,19 @@ export default function RiderStatusActions({
           <p className="mt-1 text-sm text-emerald-700">
             {message}
           </p>
-
-          <p className="mt-2 text-xs text-emerald-600">
-            This is currently a frontend demo. The backend
-            will later save this update and broadcast it to
-            the retailer and dispatcher.
-          </p>
         </div>
       )}
 
       {status === "delivered" && (
         <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
           <p className="font-semibold text-amber-800">
-            Delivery reached destination
+            Customer confirmation required
           </p>
 
           <p className="mt-1 text-sm leading-6 text-amber-700">
-            The package is ready for customer/order
-            confirmation before the delivery is marked
-            completed.
+            The package has reached its destination. Complete
+            the QR confirmation before the delivery is marked
+            Completed.
           </p>
         </div>
       )}
@@ -111,9 +99,7 @@ export default function RiderStatusActions({
   );
 }
 
-function formatStatus(
-  status: DeliveryStatus
-) {
+function formatStatus(status: DeliveryStatus) {
   return status
     .split("_")
     .map(
