@@ -320,7 +320,11 @@ function Header({
 }) {
   return (
     <th
-      className={`px-5 py-3 text-${align} text-xs font-semibold uppercase tracking-wider text-slate-500`}
+  className={`px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 ${
+  align === "right"
+    ? "text-right"
+    : "text-left"
+}`}
     >
       {children}
     </th>
