@@ -165,4 +165,93 @@ export default function LoginForm() {
               autoComplete="email"
               required
               placeholder="name@example.com"
-              className="h-12 w-full rounded-xl border border-slate-300 bg-white pl-12 pr-4 text-base text-slate-900 o
+              className="h-12 w-full rounded-xl border border-slate-300 bg-white pl-12 pr-4 text-base text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+            />
+          </div>
+        </div>
+
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <label
+              htmlFor="password"
+              className="block text-sm font-semibold text-slate-700"
+            >
+              Password
+            </label>
+
+            <Link
+              href="/forgot-password"
+              className="text-sm font-semibold text-blue-600 transition hover:text-blue-700"
+            >
+              Forgot password?
+            </Link>
+          </div>
+
+          <div className="relative">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
+              <LockIcon />
+            </div>
+
+            <input
+              id="password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              required
+              placeholder="Enter your password"
+              className="h-12 w-full rounded-xl border border-slate-300 bg-white pl-12 pr-12 text-base text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+            />
+
+            <button
+              type="button"
+              onClick={() => setShowPassword((current) => !current)}
+              aria-label={
+                showPassword
+                  ? "Hide password"
+                  : "Show password"
+              }
+              className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-slate-400 transition hover:text-slate-700"
+            >
+              <EyeIcon open={showPassword} />
+            </button>
+          </div>
+        </div>
+
+        <label className="flex cursor-pointer items-center gap-3">
+          <input
+            type="checkbox"
+            name="remember"
+            className="h-4 w-4 rounded border-slate-300 text-blue-600 accent-blue-600"
+          />
+
+          <span className="text-sm text-slate-600">
+            Remember me
+          </span>
+        </label>
+
+        <button
+          type="submit"
+          className="flex h-12 w-full items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-bold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/20"
+        >
+          Sign in
+        </button>
+
+        {message && (
+          <div
+            role="status"
+            className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-800"
+          >
+            {message}
+          </div>
+        )}
+      </form>
+
+      <div className="mt-8 border-t border-slate-200 pt-6">
+        <p className="text-center text-xs leading-5 text-slate-500">
+          Your Reflex account role determines whether you access the
+          Retailer, Dispatcher or Rider workspace.
+        </p>
+      </div>
+    </div>
+  );
+}
