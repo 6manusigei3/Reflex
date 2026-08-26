@@ -1,34 +1,48 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
 import DashboardShell from "@/components/layout/DashboardShell";
-import RiderDeliveryCard from "@/components/rider/RiderDeliveryCard";
-import PageHeader from "@/components/ui/PageHeader";
-import SectionCard from "@/components/ui/SectionCard";
+import RiderDeliveryScreen from "@/components/rider/RiderDeliveryScreen";
 
 import {
   riderDeliveries,
 } from "@/lib/mock-rider";
 
-export default function RiderDeliveriesPage() {
+type RiderDeliveryPageProps = {
+  params: Promise<{
+    id: string;
+  }>;
+};
+
+export default async function RiderDeliveryPage({
+  params,
+}: RiderDeliveryPageProps) {
+  const { id } = await params;
+
+  const delivery =
+    riderDeliveries.find(
+      (item) => item.id === id
+    );
+
+  if (!delivery) {
+    notFound();
+  }
+
   return (
     <DashboardShell
       role="rider"
       userName="David Mwangi"
     >
-      <PageHeader
-        eyebrow="Rider workspace"
-        title="Assigned Deliveries"
-        description="View all deliveries assigned to your rider account."
-      />
+      <Link
+        href="/rider/deliveries"
+        className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-blue-600"
+      >
+        ← Back to deliveries
+      </Link>
 
-      <SectionCard>
-        <div className="grid gap-4 xl:grid-cols-2">
-          {riderDeliveries.map((delivery) => (
-            <RiderDeliveryCard
-              key={delivery.id}
-              delivery={delivery}
-            />
-          ))}
-        </div>
-      </SectionCard>
+      <RiderDeliveryScreen
+        delivery={delivery}
+      />
     </DashboardShell>
   );
 }
