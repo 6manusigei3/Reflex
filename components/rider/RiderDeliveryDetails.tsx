@@ -1,19 +1,24 @@
+"use client";
+
 import Link from "next/link";
 
 import DeliveryStatusTimeline from "@/components/delivery/DeliveryStatusTimeline";
 import RiderStatusActions from "@/components/rider/RiderStatusActions";
 import SectionCard from "@/components/ui/SectionCard";
 
-import type {
-  RiderDelivery,
-} from "@/lib/mock-rider";
+import type { RiderDelivery } from "@/lib/mock-rider";
+import type { DeliveryStatus } from "@/lib/delivery";
 
 type RiderDeliveryDetailsProps = {
   delivery: RiderDelivery;
+  status: DeliveryStatus;
+  onStatusChange: (status: DeliveryStatus) => void;
 };
 
 export default function RiderDeliveryDetails({
   delivery,
+  status,
+  onStatusChange,
 }: RiderDeliveryDetailsProps) {
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -23,26 +28,21 @@ export default function RiderDeliveryDetails({
           description="Update the delivery as you complete each stage."
         >
           <DeliveryStatusTimeline
-            currentStatus={
-              delivery.status
-            }
+            currentStatus={status}
           />
         </SectionCard>
 
         <SectionCard
           title="Update delivery status"
-          description="Use the action below when you complete the next delivery stage."
+          description="Select the next stage when you complete it."
         >
           <RiderStatusActions
-            initialStatus={
-              delivery.status
-            }
+            status={status}
+            onStatusChange={onStatusChange}
           />
         </SectionCard>
 
-        <SectionCard
-          title="Delivery information"
-        >
+        <SectionCard title="Delivery information">
           <div className="grid gap-6 sm:grid-cols-2">
             <DetailItem
               label="Delivery ID"
@@ -61,9 +61,7 @@ export default function RiderDeliveryDetails({
 
             <DetailItem
               label="Customer phone"
-              value={
-                delivery.customerPhone
-              }
+              value={delivery.customerPhone}
             />
 
             <DetailItem
@@ -73,9 +71,7 @@ export default function RiderDeliveryDetails({
 
             <DetailItem
               label="Destination"
-              value={
-                delivery.destination
-              }
+              value={delivery.destination}
             />
 
             <DetailItem
@@ -86,9 +82,7 @@ export default function RiderDeliveryDetails({
             <DetailItem
               label="Priority"
               value={
-                delivery.priority
-                  .charAt(0)
-                  .toUpperCase() +
+                delivery.priority.charAt(0).toUpperCase() +
                 delivery.priority.slice(1)
               }
             />
@@ -101,77 +95,61 @@ export default function RiderDeliveryDetails({
           title="Route"
           description="Delivery pickup and destination."
         >
-          <div className="relative">
-            <RoutePoint
-              label="Pickup"
-              value={delivery.pickup}
-              type="pickup"
-            />
+          <RoutePoint
+            label="Pickup"
+            value={delivery.pickup}
+            type="pickup"
+          />
 
-            <div className="ml-[7px] h-10 w-px bg-slate-200" />
+          <div className="ml-[7px] h-10 w-px bg-slate-200" />
 
-            <RoutePoint
-              label="Destination"
-              value={
-                delivery.destination
-              }
-              type="destination"
-            />
-          </div>
+          <RoutePoint
+            label="Destination"
+            value={delivery.destination}
+            type="destination"
+          />
         </SectionCard>
 
-        <SectionCard
-          title="Customer contact"
-        >
-          <div>
-            <p className="font-semibold text-slate-900">
-              {delivery.customer}
-            </p>
+        <SectionCard title="Customer contact">
+          <p className="font-semibold text-slate-900">
+            {delivery.customer}
+          </p>
 
-            <p className="mt-1 text-sm text-slate-500">
-              {
-                delivery.customerPhone
-              }
-            </p>
+          <p className="mt-1 text-sm text-slate-500">
+            {delivery.customerPhone}
+          </p>
 
-            <a
-              href={`tel:${delivery.customerPhone.replace(
-                /\s/g,
-                ""
-              )}`}
-              className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-            >
-              Call Customer
-            </a>
-          </div>
+          <a
+            href={`tel:${delivery.customerPhone.replace(
+              /\s/g,
+              ""
+            )}`}
+            className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            Call Customer
+          </a>
         </SectionCard>
 
-        <SectionCard
-          title="Assignment information"
-        >
+        <SectionCard title="Assignment information">
           <div className="space-y-4">
             <DetailItem
               label="Assigned"
-              value={
-                delivery.assignedAt
-              }
+              value={delivery.assignedAt}
             />
 
             <DetailItem
               label="Last updated"
-              value={
-                delivery.updatedAt
-              }
+              value={delivery.updatedAt}
             />
           </div>
         </SectionCard>
 
-        {delivery.status === "delivered" && (
+        {status === "delivered" && (
           <Link
             href={`/rider/deliveries/${delivery.id}/confirm`}
-            className="flex h-12 w-full items-center justify-center rounded-xl bg-emerald-600 px-5 text-sm font-bold text-white transition hover:bg-emerald-700"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"
           >
-            Confirm Delivery
+            Show QR Confirmation
           </Link>
         )}
       </aside>
@@ -206,9 +184,7 @@ function RoutePoint({
 }: {
   label: string;
   value: string;
-  type:
-    | "pickup"
-    | "destination";
+  type: "pickup" | "destination";
 }) {
   return (
     <div className="flex gap-4">
