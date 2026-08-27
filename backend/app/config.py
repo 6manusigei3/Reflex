@@ -26,3 +26,4 @@ class Settings:
 
         return origins
 
+settings = Settings()
