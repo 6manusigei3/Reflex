@@ -63,6 +63,10 @@ app.include_router(
     prefix=settings.API_PREFIX,
 )
 
+app.include_router(
+    realtime_router,
+    prefix=settings.API_PREFIX,
+)
 
 # --------------------------------------------------
 # Root
