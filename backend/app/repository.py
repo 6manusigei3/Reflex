@@ -350,8 +350,11 @@ class InMemoryRepository:
         )
 
 
-repository = InMemoryRepository()
+from app.postgres_repository import PostgreSQLRepository
 
 
-def get_repository() -> InMemoryRepository:
+repository = PostgreSQLRepository()
+
+
+def get_repository() -> PostgreSQLRepository:
     return repository
