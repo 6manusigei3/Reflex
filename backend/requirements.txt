@@ -1,3 +1,10 @@
 fastapi
 uvicorn[standard]
 python-dotenv
+PyJWT
+SQLAlchemy>=2.0
+psycopg[binary]
+alembic
+websockets
+pytest
+httpx
