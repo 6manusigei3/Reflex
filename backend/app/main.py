@@ -8,6 +8,7 @@ from app.routes.deliveries import router as deliveries_router
 from app.routes.health import router as health_router
 from app.routes.notifications import router as notifications_router
 from app.routes.riders import router as riders_router
+from app.routes.realtime import router as realtime_router
 
 
 app = FastAPI(
