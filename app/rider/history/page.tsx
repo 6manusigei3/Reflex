@@ -1,3 +1,5 @@
+"use client";
+
 import DashboardShell from "@/components/layout/DashboardShell";
 import PageHeader from "@/components/ui/PageHeader";
 import SectionCard from "@/components/ui/SectionCard";
@@ -5,11 +7,15 @@ import RiderHistoryList from "@/components/rider/RiderHistoryList";
 
 import {
   riderDeliveries,
+  type RiderDelivery,
 } from "@/lib/mock-rider";
+import { useApiList } from "@/lib/use-api-data";
 
 export default function RiderHistoryPage() {
+  const { data: deliveries } =
+    useApiList<RiderDelivery>("/deliveries", riderDeliveries);
   const completedDeliveries =
-    riderDeliveries.filter(
+    deliveries.filter(
       (delivery) =>
         delivery.status ===
           "completed" ||

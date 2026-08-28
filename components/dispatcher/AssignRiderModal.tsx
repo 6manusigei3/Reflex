@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import type {
   DispatcherRequest,
   Rider,
@@ -9,7 +11,7 @@ type AssignRiderModalProps = {
   request: DispatcherRequest | null;
   riders: Rider[];
   onClose: () => void;
-  onAssign: (rider: Rider) => void;
+  onAssign: (rider: Rider) => Promise<void>;
 };
 
 export default function AssignRiderModal({
@@ -18,6 +20,8 @@ export default function AssignRiderModal({
   onClose,
   onAssign,
 }: AssignRiderModalProps) {
+  const [assigningRiderId, setAssigningRiderId] = useState<string | null>(null);
+
   if (!request) {
     return null;
   }
@@ -25,6 +29,15 @@ export default function AssignRiderModal({
   const availableRiders = riders.filter(
     (rider) => rider.available
   );
+
+  async function assign(rider: Rider) {
+    setAssigningRiderId(rider.id);
+    try {
+      await onAssign(rider);
+    } finally {
+      setAssigningRiderId(null);
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4">
@@ -62,6 +75,7 @@ export default function AssignRiderModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close assign rider dialog"
             className="flex h-9 w-9 items-center justify-center rounded-full text-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
           >
             ×
@@ -132,13 +146,20 @@ export default function AssignRiderModal({
 
                   <button
                     type="button"
-                    onClick={() => onAssign(rider)} className="inline-flex h-10 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-bold text-white transition hover:bg-blue-700"
+                    onClick={() => void assign(rider)}
+                    disabled={assigningRiderId !== null}
+                    className="inline-flex h-10 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-wait disabled:opacity-60"
                   >
-                    Assign
+                    {assigningRiderId === rider.id ? "Assigning…" : "Assign"}
                   </button>
                 </div>
               </div>
             ))}
+            {availableRiders.length === 0 && (
+              <div className="rounded-xl border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500">
+                No riders are currently available.
+              </div>
+            )}
           </div>
         </div>
       </div>

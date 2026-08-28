@@ -2,6 +2,7 @@ from sqlalchemy import func, select, text
 
 from app.database import SessionLocal
 from app.models import (
+    AuditEvent,
     Delivery,
     DeliveryAssignment,
     DeliveryConfirmation,
@@ -73,6 +74,10 @@ def check_database() -> None:
                 (
                     "Notifications",
                     Notification,
+                ),
+                (
+                    "Audit events",
+                    AuditEvent,
                 ),
             ]
 

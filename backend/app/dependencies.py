@@ -68,6 +68,12 @@ def get_current_user(
             detail="User account not found",
         )
 
+    if user.get("account_status", "active") != "active" or not user.get("is_active", True):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is not active",
+        )
+
     return user
 
 

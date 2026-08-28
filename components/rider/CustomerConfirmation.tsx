@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { apiRequest, getErrorMessage } from "@/lib/api";
 
 type CustomerConfirmationProps = {
   deliveryId: string;
@@ -8,6 +9,7 @@ type CustomerConfirmationProps = {
   retailer: string;
   destination: string;
   item: string;
+  code: string;
 };
 
 export default function CustomerConfirmation({
@@ -16,9 +18,29 @@ export default function CustomerConfirmation({
   retailer,
   destination,
   item,
+  code,
 }: CustomerConfirmationProps) {
   const [confirmed, setConfirmed] =
     useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  async function confirmDelivery() {
+    setSubmitting(true);
+    setError("");
+    try {
+      await apiRequest(
+        `/deliveries/${deliveryId}/confirm`,
+        { method: "POST", body: JSON.stringify({ code }) },
+        false
+      );
+      setConfirmed(true);
+    } catch (confirmError) {
+      setError(getErrorMessage(confirmError));
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   if (confirmed) {
     return (
@@ -112,13 +134,13 @@ export default function CustomerConfirmation({
 
       <button
         type="button"
-        onClick={() =>
-          setConfirmed(true)
-        }
-        className="mt-6 flex h-12 w-full items-center justify-center rounded-xl bg-emerald-600 px-5 text-sm font-bold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-500/20"
+        onClick={() => void confirmDelivery()}
+        disabled={submitting}
+        className="mt-6 flex h-12 w-full items-center justify-center rounded-xl bg-emerald-600 px-5 text-sm font-bold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-4 focus:ring-emerald-500/20 disabled:cursor-wait disabled:opacity-70"
       >
-        Confirm Package Received
+        {submitting ? "Confirming…" : "Confirm Package Received"}
       </button>
+      {error && <p role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
     </div>
   );
 }

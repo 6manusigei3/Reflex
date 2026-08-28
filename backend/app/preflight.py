@@ -18,6 +18,7 @@ REQUIRED_TABLES = {
     "delivery_status_history",
     "delivery_confirmations",
     "notifications",
+    "audit_events",
     "alembic_version",
 }
 
@@ -42,6 +43,9 @@ def check_environment() -> None:
         raise RuntimeError(
             "JWT_SECRET is not configured"
         )
+
+    if not os.getenv("ADMIN_SETUP_TOKEN"):
+        raise RuntimeError("ADMIN_SETUP_TOKEN is not configured")
 
     unsafe_secrets = {
         "change-this-secret-before-deployment",

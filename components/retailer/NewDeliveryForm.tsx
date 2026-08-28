@@ -2,6 +2,11 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
+import {
+  apiRequest,
+  getErrorMessage,
+  type ApiDelivery,
+} from "@/lib/api";
 
 type DeliveryFormData = {
   customerName: string;
@@ -29,6 +34,9 @@ export default function NewDeliveryForm() {
     Partial<Record<keyof DeliveryFormData, string>>
   >({});
   const [submitted, setSubmitted] = useState(false);
+  const [createdDelivery, setCreatedDelivery] = useState<ApiDelivery | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   function updateField(
     field: keyof DeliveryFormData,
@@ -89,7 +97,7 @@ export default function NewDeliveryForm() {
     return Object.keys(newErrors).length === 0;
   }
 
-  function handleSubmit(
+  async function handleSubmit(
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
@@ -98,14 +106,29 @@ export default function NewDeliveryForm() {
       return;
     }
 
- 
-    setSubmitted(true);
+    setSubmitting(true);
+    setSubmitError("");
+
+    try {
+      const delivery = await apiRequest<ApiDelivery>("/deliveries", {
+        method: "POST",
+        body: JSON.stringify(form),
+      });
+      setCreatedDelivery(delivery);
+      setSubmitted(true);
+    } catch (error) {
+      setSubmitError(getErrorMessage(error));
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   function resetForm() {
     setForm(initialForm);
     setErrors({});
     setSubmitted(false);
+    setCreatedDelivery(null);
+    setSubmitError("");
   }
 
   if (submitted) {
@@ -116,13 +139,12 @@ export default function NewDeliveryForm() {
         </div>
 
         <h2 className="mt-5 text-2xl font-bold tracking-tight text-slate-950">
-          Delivery request ready
+          Delivery request created
         </h2>
 
         <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
-          The form is working correctly. When the backend is
-          connected, this request will be saved and sent to the
-          dispatcher as a new open delivery.
+          Delivery {createdDelivery?.id} is now pending and visible to the
+          dispatcher for rider assignment.
         </p>
 
         <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5">
@@ -358,7 +380,7 @@ export default function NewDeliveryForm() {
               onChange={(event) =>
                 updateField(
                   "priority",
-                  event.target.value
+                    event.target.value as DeliveryFormData["priority"]
                 )
               }
               className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
@@ -405,10 +427,17 @@ export default function NewDeliveryForm() {
 
           <button
             type="submit"
-            className="mt-6 flex h-12 w-full items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-bold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/20"
+            disabled={submitting}
+            className="mt-6 flex h-12 w-full items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/20 disabled:cursor-wait disabled:opacity-70"
           >
-            Create Delivery Request
+            {submitting ? "Creating request…" : "Create Delivery Request"}
           </button>
+
+          {submitError && (
+            <p role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-700">
+              {submitError}
+            </p>
+          )}
 
           <Link
             href="/retailer"

@@ -3,9 +3,9 @@ import Link from "next/link";
 import DashboardShell from "@/components/layout/DashboardShell";
 import PageHeader from "@/components/ui/PageHeader";
 import SectionCard from "@/components/ui/SectionCard";
-import StatCard from "@/components/ui/StatCard";
 import RecentDeliveries from "@/components/retailer/RecentDeliveries";
 import RetailerActivity from "@/components/retailer/RetailerActivity";
+import RetailerStats from "@/components/retailer/RetailerStats";
 
 function PackageIcon() {
   return (
@@ -29,86 +29,6 @@ function PackageIcon() {
   );
 }
 
-function ClockIcon() {
-  return (
-    <svg
-      className="h-5 w-5"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-    >
-      <circle
-        cx="12"
-        cy="12"
-        r="9"
-        strokeWidth="1.8"
-      />
-
-      <path
-        d="M12 7v5l3 2"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function TransitIcon() {
-  return (
-    <svg
-      className="h-5 w-5"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-    >
-      <path
-        d="M3 7h11v10H3V7ZM14 10h4l3 3v4h-7v-7Z"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-
-      <circle
-        cx="7"
-        cy="18"
-        r="2"
-        strokeWidth="1.8"
-      />
-
-      <circle
-        cx="17"
-        cy="18"
-        r="2"
-        strokeWidth="1.8"
-      />
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg
-      className="h-5 w-5"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-    >
-      <circle
-        cx="12"
-        cy="12"
-        r="9"
-        strokeWidth="1.8"
-      />
-
-      <path
-        d="m8 12 2.5 2.5L16 9"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 export default function RetailerDashboard() {
   return (
     <DashboardShell
@@ -117,7 +37,7 @@ export default function RetailerDashboard() {
     >
       <PageHeader
         eyebrow="Retailer workspace"
-        title="Good afternoon, Kamau"
+        title="Delivery Overview"
         description="Here is what is happening with your deliveries today."
         action={
           <Link
@@ -133,38 +53,9 @@ export default function RetailerDashboard() {
         }
       />
 
-      <section className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <StatCard
-          title="Total Deliveries"
-          value="42"
-          description="this month"
-          icon={<PackageIcon />}
-        />
+      <RetailerStats />
 
-        <StatCard
-          title="Pending"
-          value="5"
-          description="waiting for assignment"
-          icon={<ClockIcon />}
-        />
-
-        <StatCard
-          title="In Transit"
-          value="8"
-          description="currently moving"
-          icon={<TransitIcon />}
-        />
-
-        <StatCard
-          title="Completed"
-          value="29"
-          trend="+12%"
-          description="from last month"
-          icon={<CheckIcon />}
-        />
-      </section>
-
-      <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <section className="mt-6 grid gap-6 2xl:grid-cols-[minmax(0,1fr)_340px]">
         <SectionCard
           title="Recent Deliveries"
           description="Your latest delivery requests and their current status."
@@ -228,7 +119,7 @@ export default function RetailerDashboard() {
           className="group rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-200 hover:shadow-md"
         >
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600 transition group-hover:bg-blue-600 group-hover:text-white">
-            <CheckIcon />
+            <span className="text-lg font-bold">✓</span>
           </div>
 
           <h3 className="mt-4 font-semibold text-slate-950">

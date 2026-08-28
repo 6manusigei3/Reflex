@@ -1,15 +1,12 @@
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
     Depends,
     HTTPException,
     Query,
     status,
 )
 
-from app.confirmation import (
-    get_confirmation_code,
-    is_valid_confirmation_code,
-)
 from app.dependencies import (
     get_current_user,
     require_roles,
@@ -27,6 +24,8 @@ from app.schemas import (
     DeliveryStatus,
     UpdateDeliveryStatusRequest,
 )
+from app.services.geocoding_service import geocoding_service
+from app.services.email_service import email_service
 
 
 router = APIRouter(
@@ -61,15 +60,11 @@ def ensure_delivery_access(
 
     role = current_user["role"]
 
-    if role == "dispatcher":
+    if role in {"admin", "dispatcher"}:
         return
 
     if role == "retailer":
-        organization = current_user.get(
-            "organization"
-        )
-
-        if delivery["retailer"] != organization:
+        if delivery.get("retailer_user_id") != current_user["id"]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=(
@@ -81,10 +76,7 @@ def ensure_delivery_access(
         return
 
     if role == "rider":
-        if (
-            delivery.get("rider")
-            != current_user["name"]
-        ):
+        if delivery.get("rider_user_id") != current_user["id"]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=(
@@ -107,49 +99,24 @@ def filter_deliveries_for_user(
 ) -> list[dict]:
     role = current_user["role"]
 
-    if role == "dispatcher":
+    if role in {"admin", "dispatcher"}:
         return deliveries
 
     if role == "retailer":
-        organization = current_user.get(
-            "organization"
-        )
-
         return [
             delivery
             for delivery in deliveries
-            if delivery["retailer"]
-            == organization
+            if delivery.get("retailer_user_id") == current_user["id"]
         ]
 
     if role == "rider":
         return [
             delivery
             for delivery in deliveries
-            if delivery.get("rider")
-            == current_user["name"]
+            if delivery.get("rider_user_id") == current_user["id"]
         ]
 
     return []
-
-
-def find_rider_by_name(
-    repository: InMemoryRepository,
-    rider_name: str | None,
-) -> dict | None:
-    if not rider_name:
-        return None
-
-    return next(
-        (
-            rider
-            for rider
-            in repository.list_riders()
-            if rider["name"]
-            == rider_name
-        ),
-        None,
-    )
 
 
 # --------------------------------------------------
@@ -191,9 +158,17 @@ def create_delivery(
             ),
         )
 
+    coordinates = geocoding_service.geocode_route(
+        pickup_address=payload.pickup_location,
+        destination_address=payload.delivery_address,
+    )
+    delivery_payload = payload.model_dump()
+    delivery_payload.update(coordinates)
+
     delivery = repository.create_delivery(
         retailer=organization,
-        payload=payload.model_dump(),
+        retailer_user_id=current_user["id"],
+        payload=delivery_payload,
     )
 
     return delivery
@@ -308,6 +283,7 @@ def get_delivery(
 def assign_rider(
     delivery_id: str,
     payload: AssignRiderRequest,
+    background_tasks: BackgroundTasks,
     current_user: dict = Depends(
         require_roles("dispatcher")
     ),
@@ -320,12 +296,11 @@ def assign_rider(
     pending delivery.
     """
 
-    del current_user
-
     try:
         delivery = repository.assign_rider(
             delivery_id=delivery_id,
             rider_id=payload.rider_id,
+            assigned_by_user_id=current_user["id"],
         )
 
     except KeyError as exc:
@@ -338,6 +313,16 @@ def assign_rider(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(exc),
+        )
+
+    retailer = repository.get_user_by_id(delivery.get("retailer_user_id"))
+    rider_user = repository.get_user_by_id(delivery.get("rider_user_id"))
+    if retailer:
+        background_tasks.add_task(
+            email_service.rider_assigned,
+            delivery,
+            retailer,
+            rider_user,
         )
 
     return delivery
@@ -355,6 +340,7 @@ def assign_rider(
 def update_delivery_status(
     delivery_id: str,
     payload: UpdateDeliveryStatusRequest,
+    background_tasks: BackgroundTasks,
     current_user: dict = Depends(
         require_roles("rider")
     ),
@@ -385,10 +371,7 @@ def update_delivery_status(
             detail="Delivery not found",
         )
 
-    if (
-        delivery.get("rider")
-        != current_user["name"]
-    ):
+    if delivery.get("rider_user_id") != current_user["id"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=(
@@ -408,6 +391,7 @@ def update_delivery_status(
             repository.update_delivery_status(
                 delivery_id=delivery_id,
                 new_status=new_status,
+                changed_by_user_id=current_user["id"],
             )
         )
 
@@ -422,6 +406,15 @@ def update_delivery_status(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(exc),
         )
+
+    if updated_delivery["status"] == "delivered":
+        retailer = repository.get_user_by_id(updated_delivery.get("retailer_user_id"))
+        if retailer:
+            background_tasks.add_task(
+                email_service.delivery_delivered,
+                updated_delivery,
+                retailer,
+            )
 
     return updated_delivery
 
@@ -460,7 +453,7 @@ def get_confirmation_information(
             detail="Delivery not found",
         )
 
-    if not is_valid_confirmation_code(
+    if not repository.validate_confirmation_token(
         delivery_id,
         code,
     ):
@@ -508,6 +501,7 @@ def get_confirmation_information(
 def confirm_delivery(
     delivery_id: str,
     payload: ConfirmationRequest,
+    background_tasks: BackgroundTasks,
     repository: InMemoryRepository = Depends(
         get_repository
     ),
@@ -528,31 +522,11 @@ def confirm_delivery(
             detail="Delivery not found",
         )
 
-    if not is_valid_confirmation_code(
-        delivery_id,
-        payload.code,
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid confirmation code",
-        )
-
-    if delivery["status"] == "completed":
-        return {
-            "delivery_id": delivery["id"],
-            "status": delivery["status"],
-            "confirmation_status": delivery[
-                "confirmation_status"
-            ],
-            "message": (
-                "Delivery was already confirmed"
-            ),
-        }
-
     try:
         updated_delivery = (
             repository.confirm_delivery(
-                delivery_id
+                delivery_id,
+                payload.code,
             )
         )
 
@@ -568,10 +542,19 @@ def confirm_delivery(
             detail=str(exc),
         )
 
-    rider = find_rider_by_name(
-        repository,
-        updated_delivery.get("rider"),
-    )
+    except PermissionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(exc),
+        )
+
+    retailer = repository.get_user_by_id(updated_delivery.get("retailer_user_id"))
+    if retailer:
+        background_tasks.add_task(
+            email_service.delivery_completed,
+            updated_delivery,
+            retailer,
+        )
 
     return {
         "delivery_id":
@@ -582,40 +565,28 @@ def confirm_delivery(
             updated_delivery[
                 "confirmation_status"
             ],
-        "message": (
-            "Delivery confirmed successfully"
-            if rider
-            else "Delivery confirmed successfully"
-        ),
+        "message": "Delivery confirmed successfully",
     }
 
 
 # --------------------------------------------------
-# Demo QR code helper
+# Rider QR confirmation token
 # --------------------------------------------------
 
 
 @router.get(
     "/{delivery_id}/confirmation-code",
 )
-def get_demo_confirmation_code(
+def get_confirmation_token(
     delivery_id: str,
     current_user: dict = Depends(
-        get_current_user
+        require_roles("rider")
     ),
     repository: InMemoryRepository = Depends(
         get_repository
     ),
 ):
-    """
-    Returns the temporary QR confirmation code.
-
-    This is deliberately included only for the
-    capstone prototype.
-
-    Production Reflex would never expose a
-    predictable confirmation code like this.
-    """
+    """Issue a fresh token and invalidate any previously displayed QR."""
 
     delivery = repository.get_delivery(
         delivery_id
@@ -644,9 +615,22 @@ def get_demo_confirmation_code(
             ),
         )
 
+    try:
+        token = repository.issue_confirmation_token(
+            delivery_id
+        )
+    except KeyError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Delivery not found",
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        )
+
     return {
         "deliveryId": delivery_id,
-        "code": get_confirmation_code(
-            delivery_id
-        ),
+        "code": token,
     }

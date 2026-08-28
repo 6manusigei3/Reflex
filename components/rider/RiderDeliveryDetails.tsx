@@ -3,16 +3,18 @@
 import Link from "next/link";
 
 import DeliveryStatusTimeline from "@/components/delivery/DeliveryStatusTimeline";
+import DeliveryMap from "@/components/maps/DeliveryMap";
 import RiderStatusActions from "@/components/rider/RiderStatusActions";
 import SectionCard from "@/components/ui/SectionCard";
 
 import type { RiderDelivery } from "@/lib/mock-rider";
 import type { DeliveryStatus } from "@/lib/delivery";
+import { googleMapsDirectionsUrl } from "@/lib/maps";
 
 type RiderDeliveryDetailsProps = {
   delivery: RiderDelivery;
   status: DeliveryStatus;
-  onStatusChange: (status: DeliveryStatus) => void;
+  onStatusChange: (status: DeliveryStatus) => Promise<boolean>;
 };
 
 export default function RiderDeliveryDetails({
@@ -88,6 +90,17 @@ export default function RiderDeliveryDetails({
             />
           </div>
         </SectionCard>
+
+        <SectionCard title="Route map" description="Pickup and destination for this assignment.">
+          <DeliveryMap
+            pickup={delivery.pickup}
+            destination={delivery.destination}
+            pickupLatitude={delivery.pickupLatitude}
+            pickupLongitude={delivery.pickupLongitude}
+            destinationLatitude={delivery.destinationLatitude}
+            destinationLongitude={delivery.destinationLongitude}
+          />
+        </SectionCard>
       </div>
 
       <aside className="space-y-6">
@@ -108,6 +121,14 @@ export default function RiderDeliveryDetails({
             value={delivery.destination}
             type="destination"
           />
+          <a
+            href={googleMapsDirectionsUrl(delivery)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"
+          >
+            Open in Google Maps
+          </a>
         </SectionCard>
 
         <SectionCard title="Customer contact">
@@ -134,7 +155,7 @@ export default function RiderDeliveryDetails({
           <div className="space-y-4">
             <DetailItem
               label="Assigned"
-              value={delivery.assignedAt}
+              value={delivery.assignedAt ?? "Not recorded"}
             />
 
             <DetailItem

@@ -5,7 +5,7 @@ from alembic import context
 from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
 
-from app.database import Base
+from app.database import Base, DATABASE_URL
 
 # Import models so Alembic can discover all tables.
 from app import models  # noqa: F401
@@ -21,7 +21,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 
-database_url = os.getenv("DATABASE_URL")
+database_url = DATABASE_URL
 
 if database_url:
     # Escape % because alembic.ini uses ConfigParser.

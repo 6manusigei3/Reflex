@@ -3,15 +3,19 @@
 import { useMemo, useState } from "react";
 import {
   reflexRiders,
+  type Rider,
 } from "@/lib/mock-dispatcher";
+import { useApiList } from "@/lib/use-api-data";
 
 export default function RiderList() {
+  const { data: allRiders, error } =
+    useApiList<Rider>("/riders", reflexRiders);
   const [search, setSearch] = useState("");
 
   const riders = useMemo(() => {
     const term = search.trim().toLowerCase();
 
-    return reflexRiders.filter((rider) => {
+    return allRiders.filter((rider) => {
       return (
         !term ||
         rider.name.toLowerCase().includes(term) ||
@@ -19,10 +23,15 @@ export default function RiderList() {
         rider.id.toLowerCase().includes(term)
       );
     });
-  }, [search]);
+  }, [allRiders, search]);
 
   return (
     <div>
+      {error && (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Rider availability is unavailable. Reconnect to the Reflex API to continue.
+        </div>
+      )}
       <div className="border-b border-slate-100 pb-5">
         <input
           type="search"
@@ -86,6 +95,9 @@ export default function RiderList() {
           </article>
         ))}
       </div>
+      {!riders.length && (
+        <div className="py-12 text-center"><p className="font-semibold text-slate-900">No riders registered yet</p><p className="mt-2 text-sm text-slate-500">Registered rider profiles will appear here.</p></div>
+      )}
     </div>
   );
 }

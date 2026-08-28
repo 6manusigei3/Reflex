@@ -1,10 +1,15 @@
+"use client";
+
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import StatusBadge from "@/components/ui/StatusBadge";
 import type { DeliveryStatus } from "@/lib/delivery";
 import {
   retailerDeliveries,
+  type RetailerDelivery,
 } from "@/lib/mock-deliveries";
+import { useApiList } from "@/lib/use-api-data";
 
 const filterOptions: {
   label: string;
@@ -20,6 +25,8 @@ const filterOptions: {
 ];
 
 export default function DispatcherDeliveries() {
+  const { data: allDeliveries, error } =
+    useApiList<RetailerDelivery>("/deliveries", retailerDeliveries);
   const [search, setSearch] = useState("");
   const [status, setStatus] =
     useState<"all" | DeliveryStatus>("all");
@@ -27,7 +34,7 @@ export default function DispatcherDeliveries() {
   const deliveries = useMemo(() => {
     const term = search.trim().toLowerCase();
 
-    return retailerDeliveries.filter((delivery) => {
+    return allDeliveries.filter((delivery) => {
       const matchesStatus =
         status === "all" ||
         delivery.status === status;
@@ -37,14 +44,19 @@ export default function DispatcherDeliveries() {
         delivery.id.toLowerCase().includes(term) ||
         delivery.customer.toLowerCase().includes(term) ||
         delivery.destination.toLowerCase().includes(term) ||
-        delivery.rider.toLowerCase().includes(term);
+        (delivery.rider ?? "").toLowerCase().includes(term);
 
       return matchesStatus && matchesSearch;
     });
-  }, [search, status]);
+  }, [allDeliveries, search, status]);
 
   return (
     <div>
+      {error && (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Live deliveries are unavailable. Reconnect to the Reflex API to continue.
+        </div>
+      )}
       <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 md:flex-row md:items-center md:justify-between">
         <input
           type="search"
@@ -56,7 +68,8 @@ export default function DispatcherDeliveries() {
           className="h-11 w-full max-w-md rounded-xl border border-slate-300 bg-white px-4 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
         />
 
-        <selectvalue={status}
+        <select
+          value={status}
           onChange={(event) =>
             setStatus(
               event.target.value as
@@ -97,9 +110,9 @@ export default function DispatcherDeliveries() {
                 className="transition hover:bg-slate-50"
               >
                 <td className="px-5 py-4">
-                  <p className="font-bold text-blue-600">
+                  <Link href={`/dispatcher/deliveries/${delivery.id}`} className="font-bold text-blue-600 hover:text-blue-700 hover:underline">
                     {delivery.id}
-                  </p>
+                  </Link>
 
                   <p className="mt-1 text-xs text-slate-400">
                     {delivery.createdAt}
@@ -131,9 +144,7 @@ export default function DispatcherDeliveries() {
                 </td>
 
                 <td className="px-5 py-4">
-                  <StatusBadge
-                    status={delivery.status}size="sm"
-                  />
+                  <StatusBadge status={delivery.status} size="sm" />
                 </td>
 
                 <td className="px-5 py-4 text-sm text-slate-500">

@@ -1,130 +1,68 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { deliveryStatusLabels } from "@/lib/delivery";
+import type { ApiDelivery } from "@/lib/api";
+import {
+  useDeliverySnapshots,
+  useRealtimeStatus,
+} from "@/lib/use-api-data";
 
-type LiveEvent = {
-  id: number;
-  title: string;
-  description: string;
-  time: string;
-};
-
-const initialEvents: LiveEvent[] = [
-  {
-    id: 1,
-    title: "RFX-1013 assigned",
-    description:
-      "A new delivery was assigned to your rider account.",
-    time: "Just now",
-  },
-  {
-    id: 2,
-    title: "RFX-1008 updated",
-    description:
-      "Delivery status changed to In Transit.",
-    time: "12 min ago",
-  },
-];
+type LiveEvent = { id: string; title: string; description: string; time: string };
 
 export default function RealtimeStatusPanel() {
-  const [events, setEvents] =
-    useState(initialEvents);
-
-  const [connected, setConnected] =
-    useState(true);
-
-  function simulateUpdate() {
-    const newEvent: LiveEvent = {
-      id: Date.now(),
-      title: "Demo live update",
-      description:
-        "A delivery update was received by the Reflex rider interface.",
-      time: "Just now",
-    };
-
-    setEvents((current) => [
-      newEvent,
-      ...current,
-    ]);
-  }
+  const [events, setEvents] = useState<LiveEvent[]>([]);
+  const handleSnapshot = useCallback((deliveries: ApiDelivery[]) => {
+    const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    setEvents(
+      deliveries.slice(0, 4).map((delivery) => ({
+        id: delivery.id,
+        title: `${delivery.id} ${deliveryStatusLabels[delivery.status].toLowerCase()}`,
+        description: `${delivery.customer} • ${delivery.destination}`,
+        time,
+      }))
+    );
+  }, []);
+  useDeliverySnapshots(handleSnapshot);
+  const { state, lastUpdated } = useRealtimeStatus();
+  const connected = state === "connected";
 
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span
-            className={`h-2.5 w-2.5 rounded-full ${
-              connected
-                ? "bg-emerald-500"
-                : "bg-slate-400"
-            }`}
-          />
-
+          <span className={`h-2.5 w-2.5 rounded-full ${connected ? "bg-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,.12)]" : state === "reconnecting" ? "animate-pulse bg-amber-500" : "bg-slate-400"}`} />
           <p className="text-sm font-semibold text-slate-800">
-            {connected
-              ? "Live updates ready"
-              : "Live updates paused"}
+            {connected ? "Realtime connected" : state === "reconnecting" ? "Reconnecting…" : state === "connecting" ? "Connecting…" : "Realtime offline"}
           </p>
         </div>
-
-        <button
-          type="button"
-          onClick={() =>
-            setConnected(
-              (current) => !current
-            )
-          }
-          className="text-xs font-semibold text-slate-500 transition hover:text-blue-600"
-        >
-          {connected
-            ? "Pause demo"
-            : "Resume demo"}
-        </button>
+        {lastUpdated && <p className="text-[11px] font-medium text-slate-400">Updated {lastUpdated}</p>}
       </div>
 
       <p className="mt-2 text-xs leading-5 text-slate-400">
-        This frontend panel is prepared for
-        WebSocket events. During integration,
-        FastAPI will replace the demo updates
-        with real delivery events.
+        Delivery snapshots arrive securely over the authenticated Reflex WebSocket. The latest received snapshot remains visible if the connection drops.
       </p>
 
       <div className="mt-5 space-y-3">
-        {events.slice(0, 4).map((event) => (
-          <div
-            key={event.id}
-            className="rounded-xl border border-slate-200 bg-slate-50 p-4"
-          >
-            <div className="flex items-start gap-3">
-              <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-blue-500" />
-
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-900">
-                  {event.title}
-                </p>
-
-                <p className="mt-1 text-sm leading-5 text-slate-500">
-                  {event.description}
-                </p>
-
-                <p className="mt-2 text-xs text-slate-400">
-                  {event.time}
-                </p>
+        {events.length ? (
+          events.map((event) => (
+            <div key={event.id} className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 to-white p-4 transition hover:border-blue-200">
+              <div className="flex items-start gap-3">
+                <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-blue-500" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-900">{event.title}</p>
+                  <p className="mt-1 text-sm leading-5 text-slate-500">{event.description}</p>
+                  <p className="mt-2 text-xs text-slate-400">{event.time}</p>
+                </div>
               </div>
             </div>
+          ))
+        ) : (
+          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-center text-sm text-slate-500">
+            Live delivery activity will appear after the first realtime snapshot arrives.
           </div>
-        ))}
+        )}
       </div>
-
-      {connected && (
-        <button
-          type="button"
-          onClick={simulateUpdate}
-          className="mt-4 flex h-10 w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-600 transition hover:border-blue-300 hover:text-blue-600"
-        >
-          Simulate Live Update
-        </button>
-      )}
     </div>
   );
 }

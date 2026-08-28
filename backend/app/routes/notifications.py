@@ -1,6 +1,8 @@
 from fastapi import (
     APIRouter,
     Depends,
+    HTTPException,
+    status,
 )
 
 from app.dependencies import (
@@ -82,6 +84,56 @@ def get_notifications(
         for notification
         in notifications
     ]
+
+
+@router.patch(
+    "/read-all",
+)
+def mark_all_notifications_read(
+    current_user: dict = Depends(
+        get_current_user
+    ),
+    repository: InMemoryRepository = Depends(
+        get_repository
+    ),
+):
+    updated = (
+        repository.mark_all_notifications_read(
+            user_id=current_user["id"]
+        )
+    )
+
+    return {
+        "updated": updated,
+    }
+
+
+@router.patch(
+    "/{notification_id}/read",
+)
+def mark_notification_read(
+    notification_id: int,
+    current_user: dict = Depends(
+        get_current_user
+    ),
+    repository: InMemoryRepository = Depends(
+        get_repository
+    ),
+):
+    updated = repository.mark_notification_read(
+        user_id=current_user["id"],
+        notification_id=notification_id,
+    )
+
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notification not found",
+        )
+
+    return {
+        "updated": True,
+    }
 
 
 # --------------------------------------------------

@@ -3,15 +3,14 @@
 import {
   useEffect,
   useState,
+  useSyncExternalStore,
 } from "react";
 
 import {
   QRCodeSVG,
 } from "qrcode.react";
 
-import {
-  getConfirmationCode,
-} from "@/lib/confirmation";
+import { apiRequest, getErrorMessage } from "@/lib/api";
 
 type QRConfirmationProps = {
   deliveryId: string;
@@ -24,28 +23,50 @@ export default function QRConfirmation({
   customer,
   destination,
 }: QRConfirmationProps) {
-  const [confirmationUrl, setConfirmationUrl] =
-    useState("");
+  const origin = useSyncExternalStore(
+    () => () => undefined,
+    () => window.location.origin,
+    () => ""
+  );
 
-  const confirmationCode =
-    getConfirmationCode(deliveryId);
+  const [confirmationCode, setConfirmationCode] = useState("");
+  const [codeError, setCodeError] = useState("");
 
   useEffect(() => {
-    const url =
-      `${window.location.origin}` +
+    let active = true;
+    async function loadCode() {
+      try {
+        const response = await apiRequest<{ code: string }>(
+          `/deliveries/${deliveryId}/confirmation-code`
+        );
+        if (active) {
+          setConfirmationCode(response.code);
+          setCodeError("");
+        }
+      } catch (error) {
+        if (active) {
+          setConfirmationCode("");
+          setCodeError(getErrorMessage(error));
+        }
+      }
+    }
+    void loadCode();
+    return () => {
+      active = false;
+    };
+  }, [deliveryId]);
+
+  const confirmationUrl = origin
+    && confirmationCode
+    ? `${origin}` +
       `/confirm-delivery` +
       `?delivery=${encodeURIComponent(
         deliveryId
       )}` +
       `&code=${encodeURIComponent(
         confirmationCode
-      )}`;
-
-    setConfirmationUrl(url);
-  }, [
-    deliveryId,
-    confirmationCode,
-  ]);
+      )}`
+    : "";
 
   return (
     <div className="grid gap-6 lg:grid-cols-[330px_minmax(0,1fr)]">
@@ -72,13 +93,28 @@ export default function QRConfirmation({
         </p>
 
         <div className="mt-5 rounded-xl bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Confirmation code
-          </p>
-
-          <p className="mt-2 font-mono text-2xl font-bold tracking-[0.22em] text-slate-950">
-            {confirmationCode}
-          </p>
+          {confirmationCode ? (
+            <>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Secure confirmation token
+              </p>
+              <p className="mt-2 break-all font-mono text-sm font-bold tracking-wide text-slate-950">
+                {confirmationCode}
+              </p>
+              <p className="mt-2 text-[11px] font-semibold text-emerald-600">
+                Issued by Reflex API
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-semibold text-amber-700">
+                Confirmation unavailable
+              </p>
+              <p className="mt-2 text-xs leading-5 text-amber-600">
+                {codeError || "Requesting a secure token from Reflex…"}
+              </p>
+            </>
+          )}
         </div>
       </section>
 

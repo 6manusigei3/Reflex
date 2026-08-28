@@ -10,6 +10,7 @@ import type {
 import type {
   RetailerDelivery,
 } from "@/lib/mock-deliveries";
+import { useApiList } from "@/lib/use-api-data";
 
 type DeliveryListProps = {
   deliveries: RetailerDelivery[];
@@ -52,6 +53,8 @@ const filters: {
 export default function DeliveryList({
   deliveries,
 }: DeliveryListProps) {
+  const { data: currentDeliveries, loading, error } =
+    useApiList<RetailerDelivery>("/deliveries", deliveries);
   const [search, setSearch] = useState("");
   const [status, setStatus] =
     useState<"all" | DeliveryStatus>("all");
@@ -60,7 +63,7 @@ export default function DeliveryList({
     const normalizedSearch =
       search.trim().toLowerCase();
 
-    return deliveries.filter((delivery) => {
+    return currentDeliveries.filter((delivery) => {
       const matchesStatus =
         status === "all" ||
         delivery.status === status;
@@ -76,15 +79,25 @@ export default function DeliveryList({
         delivery.destination
           .toLowerCase()
           .includes(normalizedSearch) ||
-        delivery.rider
+        (delivery.rider ?? "")
           .toLowerCase()
           .includes(normalizedSearch);
 
       return matchesStatus && matchesSearch;
     });
-  }, [deliveries, search, status]);
+  }, [currentDeliveries, search, status]);
 
   return (<div>
+      {error && (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Live delivery data is unavailable. Reconnect to the Reflex API to continue.
+        </div>
+      )}
+      {loading && (
+        <div className="mb-4 h-1 overflow-hidden rounded-full bg-blue-100">
+          <div className="h-full w-1/2 animate-pulse rounded-full bg-blue-500" />
+        </div>
+      )}
       <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 md:flex-row md:items-center md:justify-between">
         <div className="relative w-full max-w-md">
           <svg
@@ -152,12 +165,15 @@ export default function DeliveryList({
         {filteredDeliveries.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-300 px-5 py-12 text-center">
             <p className="font-semibold text-slate-900">
-              No deliveries found
+              {!search && status === "all" ? "No deliveries yet" : "No deliveries found"}
             </p>
 
             <p className="mt-2 text-sm text-slate-500">
-              Try changing your search or status filter.
+              {!search && status === "all" ? "Create your first delivery to begin tracking it here." : "Try changing your search or status filter."}
             </p>
+            {!search && status === "all" && (
+              <Link href="/retailer/new-delivery" className="mt-5 inline-flex h-10 items-center rounded-xl bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700">Create your first delivery</Link>
+            )}
           </div>
         ) : (
           <>
@@ -297,7 +313,7 @@ export default function DeliveryList({
 
                       <MobileItem
                         label="Rider"
-                        value={delivery.rider}
+                        value={delivery.rider ?? "Not assigned"}
                       />
                     </div>
                   </Link>

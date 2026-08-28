@@ -1,18 +1,24 @@
-import type { DeliveryStatus } from "@/lib/delivery";
+import type { ApiDelivery } from "@/lib/api";
 
-export type RiderDelivery = {
-  id: string;
-  customer: string;
-  customerPhone: string;
-  pickup: string;
-  destination: string;
-  item: string;
-  status: DeliveryStatus;
-  priority: "normal" | "high" | "urgent";
-  retailer: string;
-  assignedAt: string;
-  updatedAt: string;
-};
+export type RiderDelivery = Pick<
+  ApiDelivery,
+  | "id"
+  | "customer"
+  | "customerPhone"
+  | "pickup"
+  | "destination"
+  | "pickupLatitude"
+  | "pickupLongitude"
+  | "destinationLatitude"
+  | "destinationLongitude"
+  | "item"
+  | "status"
+  | "priority"
+  | "retailer"
+  | "assignedAt"
+  | "updatedAt"
+  | "confirmationStatus"
+>;
 
 export const riderDeliveries: RiderDelivery[] = [
   {
@@ -27,6 +33,7 @@ export const riderDeliveries: RiderDelivery[] = [
     retailer: "MetroTech Electronics",
     assignedAt: "26 Aug 2026, 2:40 PM",
     updatedAt: "26 Aug 2026, 4:18 PM",
+    confirmationStatus: "not_ready",
   },
   {
     id: "RFX-1013",
@@ -40,6 +47,7 @@ export const riderDeliveries: RiderDelivery[] = [
     retailer: "City Office Supplies",
     assignedAt: "26 Aug 2026, 5:12 PM",
     updatedAt: "26 Aug 2026, 5:12 PM",
+    confirmationStatus: "not_ready",
   },
   {
     id: "RFX-1003",
@@ -53,5 +61,6 @@ export const riderDeliveries: RiderDelivery[] = [
     retailer: "MetroTech Electronics",
     assignedAt: "25 Aug 2026, 10:25 AM",
     updatedAt: "25 Aug 2026, 1:20 PM",
+    confirmationStatus: "confirmed",
   },
 ];
