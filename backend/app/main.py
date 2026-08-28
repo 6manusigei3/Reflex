@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 
 from app.routes.auth import router as auth_router
+from app.routes.admin import router as admin_router
 from app.routes.deliveries import router as deliveries_router
 from app.routes.health import router as health_router
 from app.routes.notifications import router as notifications_router
@@ -45,6 +46,11 @@ app.include_router(
 
 app.include_router(
     auth_router,
+    prefix=settings.API_PREFIX,
+)
+
+app.include_router(
+    admin_router,
     prefix=settings.API_PREFIX,
 )
 
@@ -96,6 +102,7 @@ async def api_information():
         "version": settings.APP_VERSION,
         "resources": {
             "authentication": "/api/auth",
+            "administration": "/api/admin",
             "deliveries": "/api/deliveries",
             "riders": "/api/riders",
             "notifications": "/api/notifications",

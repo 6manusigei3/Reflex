@@ -132,8 +132,8 @@ def get_my_rider_profile(
         (
             item
             for item in riders
-            if item["name"]
-            == current_user["name"]
+            if item.get("user_id")
+            == current_user["id"]
         ),
         None,
     )

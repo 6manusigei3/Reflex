@@ -1,10 +1,13 @@
 from enum import Enum
+import re
 from typing import Optional
 
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    field_validator,
+    model_validator,
 )
 
 
@@ -31,9 +34,23 @@ class APIModel(BaseModel):
 
 
 class UserRole(str, Enum):
+    ADMIN = "admin"
     RETAILER = "retailer"
     DISPATCHER = "dispatcher"
     RIDER = "rider"
+
+
+class RegistrationRole(str, Enum):
+    RETAILER = "retailer"
+    DISPATCHER = "dispatcher"
+    RIDER = "rider"
+
+
+class AccountStatus(str, Enum):
+    PENDING = "pending"
+    ACTIVE = "active"
+    REJECTED = "rejected"
+    SUSPENDED = "suspended"
 
 
 class DeliveryStatus(str, Enum):
@@ -78,12 +95,98 @@ class LoginRequest(APIModel):
     password: str
 
 
+class RegisterRequest(APIModel):
+    name: str = Field(min_length=2, max_length=120)
+    email: str = Field(min_length=5, max_length=255)
+    password: str = Field(min_length=8, max_length=128)
+    role: RegistrationRole
+    organization: Optional[str] = Field(default=None, max_length=180)
+    phone: Optional[str] = Field(default=None, max_length=30)
+
+    @field_validator("name")
+    @classmethod
+    def normalize_name(cls, value: str) -> str:
+        normalized = value.strip()
+        if len(normalized) < 2:
+            raise ValueError("Enter your full name")
+        return normalized
+
+    @field_validator("organization", "phone")
+    @classmethod
+    def strip_optional_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        local, separator, domain = normalized.partition("@")
+        if not separator or not local or "." not in domain:
+            raise ValueError("Enter a valid email address")
+        return normalized
+
+    @model_validator(mode="after")
+    def validate_role_profile(self):
+        if self.role == RegistrationRole.RETAILER and not self.organization:
+            raise ValueError("Retailer registration requires a business name")
+        if self.role == RegistrationRole.RIDER and not self.phone:
+            raise ValueError("Rider registration requires a phone number")
+        return self
+
+
 class UserPublic(APIModel):
     id: str
     name: str
     email: str
     role: UserRole
     organization: Optional[str] = None
+    phone: Optional[str] = None
+    account_status: AccountStatus
+
+
+class ProfileUpdate(APIModel):
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        use_enum_values=True,
+        extra="forbid",
+    )
+
+    name: str = Field(min_length=2, max_length=120)
+    phone: Optional[str] = Field(default=None, max_length=30)
+    organization: Optional[str] = Field(default=None, max_length=180)
+
+    @field_validator("name")
+    @classmethod
+    def normalize_profile_name(cls, value: str) -> str:
+        normalized = " ".join(value.strip().split())
+        if len(normalized) < 2:
+            raise ValueError("Enter your full name")
+        return normalized
+
+    @field_validator("phone")
+    @classmethod
+    def validate_profile_phone(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        normalized = " ".join(value.strip().split())
+        if not re.fullmatch(r"[0-9+().\- ]+", normalized):
+            raise ValueError("Enter a valid phone number")
+        digit_count = len(re.sub(r"\D", "", normalized))
+        if digit_count < 7 or digit_count > 15:
+            raise ValueError("Phone number must contain 7 to 15 digits")
+        return normalized
+
+    @field_validator("organization")
+    @classmethod
+    def normalize_profile_organization(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = " ".join(value.strip().split())
+        return normalized or None
 
 
 class TokenResponse(APIModel):
@@ -91,6 +194,65 @@ class TokenResponse(APIModel):
     token_type: str = "bearer"
     expires_in: int
     user: UserPublic
+
+
+class RegistrationResponse(APIModel):
+    user: UserPublic
+    message: str
+
+
+class AdminSetupRequest(APIModel):
+    setup_token: str = Field(min_length=8, max_length=500)
+    name: str = Field(min_length=2, max_length=120)
+    email: str = Field(min_length=5, max_length=255)
+    password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("name")
+    @classmethod
+    def normalize_setup_name(cls, value: str) -> str:
+        normalized = value.strip()
+        if len(normalized) < 2:
+            raise ValueError("Enter the administrator's full name")
+        return normalized
+
+    @field_validator("email")
+    @classmethod
+    def normalize_setup_email(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        local, separator, domain = normalized.partition("@")
+        if not separator or not local or "." not in domain:
+            raise ValueError("Enter a valid email address")
+        return normalized
+
+
+class AdminSetupStatus(APIModel):
+    setup_required: bool
+
+
+class AdminUserResponse(UserPublic):
+    created_at: str
+    approved_at: Optional[str] = None
+
+
+class AdminStatsResponse(APIModel):
+    total_retailers: int
+    total_riders: int
+    active_riders: int
+    total_dispatchers: int
+    pending_approvals: int
+    active_deliveries: int
+    completed_deliveries: int
+    total_users: int
+
+
+class AuditEventResponse(APIModel):
+    id: int
+    actor_name: Optional[str] = None
+    action: str
+    entity_type: str
+    entity_id: str
+    metadata: dict
+    created_at: str
 
 
 # ============================================================
@@ -148,6 +310,10 @@ class DeliveryResponse(APIModel):
 
     pickup: str
     destination: str
+    pickup_latitude: Optional[float] = None
+    pickup_longitude: Optional[float] = None
+    destination_latitude: Optional[float] = None
+    destination_longitude: Optional[float] = None
     item: str
 
     delivery_notes: Optional[str] = None

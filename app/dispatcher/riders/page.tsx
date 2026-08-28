@@ -3,16 +3,7 @@ import RiderList from "@/components/dispatcher/RiderList";
 import PageHeader from "@/components/ui/PageHeader";
 import SectionCard from "@/components/ui/SectionCard";
 
-import {
-  reflexRiders,
-} from "@/lib/mock-dispatcher";
-
 export default function RidersPage() {
-  const available =
-    reflexRiders.filter(
-      (rider) => rider.available
-    ).length;
-
   return (
     <DashboardShell
       role="dispatcher"
@@ -21,7 +12,7 @@ export default function RidersPage() {
       <PageHeader
         eyebrow="Dispatcher workspace"
         title="Riders"
-        description={`${available} of ${reflexRiders.length} riders are currently available for assignment.`}
+        description="Review the live rider roster, availability and active delivery workload."
       />
 
       <SectionCard

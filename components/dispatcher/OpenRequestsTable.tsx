@@ -9,6 +9,8 @@ import type {
   DispatcherRequest,
   Rider,
 } from "@/lib/mock-dispatcher";
+import { apiRequest, getErrorMessage, type ApiDelivery } from "@/lib/api";
+import { useApiList } from "@/lib/use-api-data";
 
 type OpenRequestsTableProps = {
   initialRequests: DispatcherRequest[];
@@ -17,20 +19,26 @@ type OpenRequestsTableProps = {
 
 export default function OpenRequestsTable({
   initialRequests,
-  riders,
+  riders: fallbackRiders,
 }: OpenRequestsTableProps) {
-  const [requests, setRequests] =
-    useState(initialRequests);
+  const { data: requests, setData: setRequests, error: requestsError, loading } =
+    useApiList<DispatcherRequest>("/deliveries", initialRequests);
+  const { data: riders } =
+    useApiList<Rider>("/riders", fallbackRiders);
 
   const [search, setSearch] = useState("");
 
   const [selectedRequest, setSelectedRequest] =
     useState<DispatcherRequest | null>(null);
+  const [actionError, setActionError] = useState("");
 
   const filteredRequests = useMemo(() => {
     const term = search.trim().toLowerCase();
 
     return requests.filter((request) => {
+      if (request.status !== "pending") {
+        return false;
+      }
       if (!term) {
         return true;
       }
@@ -44,28 +52,35 @@ export default function OpenRequestsTable({
     });
   }, [requests, search]);
 
-  function assignRider(rider: Rider) {
+  async function assignRider(rider: Rider) {
     if (!selectedRequest) {
       return;
     }
 
-    setRequests((current) =>
-      current.map((request) =>
-        request.id === selectedRequest.id
-          ? {
-              ...request,
-              rider: rider.name,
-              status: "assigned",
-            }
-          : request
-      )
-    );
-
-    setSelectedRequest(null);
+    try {
+      const updated = await apiRequest<ApiDelivery>(
+        `/deliveries/${selectedRequest.id}/assign`,
+        { method: "POST", body: JSON.stringify({ riderId: rider.id }) }
+      );
+      setRequests((current) =>
+        current.map((request) =>
+          request.id === updated.id ? updated : request
+        )
+      );
+      setSelectedRequest(null);
+      setActionError("");
+    } catch (error) {
+      setActionError(getErrorMessage(error));
+    }
   }
 
   return (
     <>
+      {(requestsError || actionError) && (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {actionError || "Live delivery requests are unavailable. Reconnect to the Reflex API to continue."}
+        </div>
+      )}
       <div className="mb-5"><div className="relative max-w-md">
           <svg
             className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
@@ -100,7 +115,7 @@ export default function OpenRequestsTable({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[980px]">
+        <table className="w-full min-w-[820px]">
           <thead>
             <tr className="border-y border-slate-200 bg-slate-50">
               <Header>Request</Header>
@@ -109,7 +124,6 @@ export default function OpenRequestsTable({
               <Header>Destination</Header>
               <Header>Priority</Header>
               <Header>Status</Header>
-              <Header>Rider</Header>
               <Header align="right">Action</Header>
             </tr>
           </thead>
@@ -162,48 +176,30 @@ export default function OpenRequestsTable({
                   />
                 </td>
 
-                <td className="px-5 py-4">
-                  {request.rider ? (
-                    <p className="text-sm font-medium text-slate-700">
-                      {request.rider}
-                    </p>
-                  ) : (
-                    <p className="text-sm italic text-slate-400">
-                      Unassigned
-                    </p>
-                  )}
-                </td>
-
                 <td className="px-5 py-4 text-right">
-                  {request.status === "pending" ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSelectedRequest(request)
-                      }
-                      className="inline-flex h-9 items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-bold text-white transition hover:bg-blue-700"
-                    >
-                      Assign Rider
-                    </button>
-                  ) : (
-                    <span className="text-sm font-semibold text-emerald-600">
-                      Assigned
-                    </span>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedRequest(request)
+                    }
+                    className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-lg bg-blue-600 px-4 text-sm font-bold text-white transition hover:bg-blue-700"
+                  >
+                    Assign Rider
+                  </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
 
-        {filteredRequests.length === 0 && (
+        {!loading && filteredRequests.length === 0 && (
           <div className="py-12 text-center">
             <p className="font-semibold text-slate-900">
-              No requests found
+              {search ? "No requests found" : "No open delivery requests yet"}
             </p>
 
             <p className="mt-1 text-sm text-slate-500">
-              Try changing your search.
+              {search ? "Try changing your search." : "New retailer requests will appear here automatically."}
             </p>
           </div>
         )}

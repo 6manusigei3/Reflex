@@ -1,3 +1,5 @@
+"use client";
+
 import DashboardShell from "@/components/layout/DashboardShell";
 import PageHeader from "@/components/ui/PageHeader";
 import SectionCard from "@/components/ui/SectionCard";
@@ -5,10 +7,13 @@ import StatusBadge from "@/components/ui/StatusBadge";
 
 import {
   retailerDeliveries,
+  type RetailerDelivery,
 } from "@/lib/mock-deliveries";
+import { useApiList } from "@/lib/use-api-data";
 
 export default function DispatcherHistoryPage() {
-  const completed = retailerDeliveries.filter(
+  const { data } = useApiList<RetailerDelivery>("/deliveries", retailerDeliveries);
+  const completed = data.filter(
     (delivery) =>
       delivery.status === "completed" ||
       delivery.status === "delivered"
@@ -64,7 +69,8 @@ export default function DispatcherHistoryPage() {
                   </td>
 
                   <td className="px-5 py-4">
-                    <StatusBadgestatus={delivery.status}
+                    <StatusBadge
+                      status={delivery.status}
                       size="sm"
                     />
                   </td>

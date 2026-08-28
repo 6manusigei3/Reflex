@@ -7,9 +7,6 @@ load_dotenv()
 
 from sqlalchemy import select
 
-from app.confirmation import (
-    get_confirmation_code,
-)
 from app.database import SessionLocal
 from app.demo_data import (
     DEMO_DELIVERIES,
@@ -134,6 +131,7 @@ def seed_users(
                 organization=data.get(
                     "organization"
                 ),
+                account_status="active",
                 is_active=True,
             )
         )
@@ -544,11 +542,8 @@ def seed_confirmations(
         db.add(
             DeliveryConfirmation(
                 delivery_id=data["id"],
-                confirmation_code=(
-                    get_confirmation_code(
-                        data["id"]
-                    )
-                ),
+                confirmation_token_hash=None,
+                confirmation_token_expires_at=None,
                 status=(
                     "confirmed"
                     if confirmed

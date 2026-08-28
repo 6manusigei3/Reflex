@@ -1,60 +1,34 @@
+"use client";
+
 import Link from "next/link";
+import EmptyState from "@/components/ui/EmptyState";
 import StatusBadge from "@/components/ui/StatusBadge";
-import type { DeliveryStatus } from "@/lib/delivery";
-
-type Delivery = {
-  id: string;
-  customer: string;
-  destination: string;
-  rider: string;
-  status: DeliveryStatus;
-  createdAt: string;
-};
-
-const deliveries: Delivery[] = [
-  {
-    id: "RFX-1008",
-    customer: "Grace Wanjiku",
-    destination: "Kilimani, Nairobi",
-    rider: "David Mwangi",
-    status: "in_transit",
-    createdAt: "26 Aug, 2:30 PM",
-  },
-  {
-    id: "RFX-1007",
-    customer: "Brian Otieno",
-    destination: "Westlands, Nairobi",
-    rider: "Kevin Kiptoo",
-    status: "picked_up",
-    createdAt: "26 Aug, 1:15 PM",
-  },
-  {
-    id: "RFX-1006",
-    customer: "Mercy Achieng",
-    destination: "Lavington, Nairobi",
-    rider: "Not assigned",
-    status: "pending",
-    createdAt: "26 Aug, 11:42 AM",
-  },
-  {
-    id: "RFX-1005",
-    customer: "Peter Kamau",
-    destination: "South B, Nairobi",
-    rider: "Samuel Maina",
-    status: "completed",
-    createdAt: "26 Aug, 9:25 AM",
-  },
-  {
-    id: "RFX-1004",
-    customer: "Faith Njeri",
-    destination: "Parklands, Nairobi",
-    rider: "James Kariuki",
-    status: "delivered",
-    createdAt: "25 Aug, 4:10 PM",
-  },
-];
+import {
+  retailerDeliveries,
+  type RetailerDelivery,
+} from "@/lib/mock-deliveries";
+import { useApiList } from "@/lib/use-api-data";
 
 export default function RecentDeliveries() {
+  const { data, loading } = useApiList<RetailerDelivery>(
+    "/deliveries",
+    retailerDeliveries
+  );
+
+  if (loading) {
+    return <div className="py-12 text-center text-sm font-semibold text-slate-500">Loading deliveries…</div>;
+  }
+
+  if (!data.length) {
+    return (
+      <EmptyState
+        title="No deliveries yet"
+        description="Create your first delivery request and track it here from assignment through confirmation."
+        action={<Link href="/retailer/new-delivery" className="inline-flex h-10 items-center rounded-xl bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700">Create your first delivery</Link>}
+      />
+    );
+  }
+
   return (
     <div className="-mx-5 overflow-x-auto">
       <table className="w-full min-w-[820px]">
@@ -91,7 +65,7 @@ export default function RecentDeliveries() {
         </thead>
 
         <tbody className="divide-y divide-slate-100">
-          {deliveries.map((delivery) => (
+          {data.slice(0, 5).map((delivery) => (
             <tr
               key={delivery.id}
               className="transition-colors hover:bg-slate-50"
@@ -120,12 +94,12 @@ export default function RecentDeliveries() {
               <td className="px-5 py-4">
                 <p
                   className={`text-sm ${
-                    delivery.rider === "Not assigned"
+                    !delivery.rider || delivery.rider === "Not assigned"
                       ? "italic text-slate-400"
                       : "text-slate-600"
                   }`}
                 >
-                  {delivery.rider}
+                  {delivery.rider ?? "Not assigned"}
                 </p>
               </td>
 

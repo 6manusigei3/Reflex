@@ -7,7 +7,7 @@ import type { DeliveryStatus } from "@/lib/delivery";
 
 type RiderStatusActionsProps = {
   status: DeliveryStatus;
-  onStatusChange: (status: DeliveryStatus) => void;
+  onStatusChange: (status: DeliveryStatus) => Promise<boolean>;
 };
 
 const nextStatusMap: Partial<
@@ -31,19 +31,24 @@ export default function RiderStatusActions({
   onStatusChange,
 }: RiderStatusActionsProps) {
   const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const nextStatus = nextStatusMap[status];
 
-  function updateStatus() {
+  async function updateStatus() {
     if (!nextStatus) {
       return;
     }
 
-    onStatusChange(nextStatus);
-
-    setMessage(
-      `Delivery updated to ${formatStatus(nextStatus)}.`
-    );
+    setLoading(true);
+    try {
+      const updated = await onStatusChange(nextStatus);
+      if (updated) {
+        setMessage(`Delivery updated to ${formatStatus(nextStatus)}.`);
+      }
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -62,10 +67,11 @@ export default function RiderStatusActions({
         {nextStatus && (
           <button
             type="button"
-            onClick={updateStatus}
-            className="inline-flex h-11 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-bold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/20"
+            onClick={() => void updateStatus()}
+            disabled={loading}
+            className="inline-flex h-11 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-bold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/20 disabled:cursor-wait disabled:opacity-70"
           >
-            {buttonLabels[status]}
+            {loading ? "Updating…" : buttonLabels[status]}
           </button>
         )}
       </div>

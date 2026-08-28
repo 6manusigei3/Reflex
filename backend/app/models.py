@@ -32,8 +32,12 @@ class User(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "role IN ('retailer', 'dispatcher', 'rider')",
+            "role IN ('admin', 'retailer', 'dispatcher', 'rider')",
             name="ck_users_role",
+        ),
+        CheckConstraint(
+            "account_status IN ('pending', 'active', 'rejected', 'suspended')",
+            name="ck_users_account_status",
         ),
     )
 
@@ -67,6 +71,28 @@ class User(Base):
 
     organization: Mapped[Optional[str]] = mapped_column(
         String(180),
+        nullable=True,
+    )
+
+    phone: Mapped[Optional[str]] = mapped_column(
+        String(30),
+        nullable=True,
+    )
+
+    account_status: Mapped[str] = mapped_column(
+        String(20),
+        default="pending",
+        index=True,
+        nullable=False,
+    )
+
+    approved_by_user_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    approved_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
         nullable=True,
     )
 
@@ -286,6 +312,22 @@ class Delivery(Base):
     delivery_address: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
+    )
+
+    pickup_latitude: Mapped[Optional[float]] = mapped_column(
+        nullable=True,
+    )
+
+    pickup_longitude: Mapped[Optional[float]] = mapped_column(
+        nullable=True,
+    )
+
+    destination_latitude: Mapped[Optional[float]] = mapped_column(
+        nullable=True,
+    )
+
+    destination_longitude: Mapped[Optional[float]] = mapped_column(
+        nullable=True,
     )
 
     item_description: Mapped[str] = mapped_column(
@@ -572,12 +614,14 @@ class DeliveryConfirmation(Base):
         index=True,
     )
 
-    # Prototype confirmation token/code.
-    # Production should store a strong hashed,
-    # random, short-lived token instead.
-    confirmation_code: Mapped[str] = mapped_column(
-        String(255),
-        nullable=False,
+    confirmation_token_hash: Mapped[Optional[str]] = mapped_column(
+        String(64),
+        nullable=True,
+    )
+
+    confirmation_token_expires_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     status: Mapped[str] = mapped_column(
@@ -691,4 +735,30 @@ class Notification(Base):
 
     delivery: Mapped[Optional["Delivery"]] = relationship(
         back_populates="notifications",
+    )
+
+
+# ============================================================
+# PLATFORM AUDIT EVENTS
+# ============================================================
+
+
+class AuditEvent(Base):
+    __tablename__ = "audit_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    actor_user_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    action: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    entity_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    metadata_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        index=True,
+        nullable=False,
     )

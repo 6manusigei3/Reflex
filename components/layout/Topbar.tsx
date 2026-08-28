@@ -1,4 +1,10 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+
+import { apiRequest } from "@/lib/api";
 import type { UserRole } from "./Sidebar";
 
 type TopbarProps = {
@@ -47,6 +53,8 @@ export default function Topbar({
   userName,
   onMenuClick,
 }: TopbarProps) {
+  const pathname = usePathname();
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const roleName =
     role.charAt(0).toUpperCase() + role.slice(1);
 
@@ -56,6 +64,34 @@ export default function Topbar({
     .join("")
     .slice(0, 2)
     .toUpperCase();
+
+  useEffect(() => {
+    let active = true;
+
+    async function refreshUnreadCount() {
+      try {
+        const summary = await apiRequest<{ unread: number }>(
+          "/notifications/summary"
+        );
+        if (active) setUnreadNotifications(summary.unread);
+      } catch {
+        if (active) setUnreadNotifications(0);
+      }
+    }
+
+    void refreshUnreadCount();
+    window.addEventListener("reflex:notifications-changed", refreshUnreadCount);
+    const interval = window.setInterval(refreshUnreadCount, 30_000);
+
+    return () => {
+      active = false;
+      window.removeEventListener(
+        "reflex:notifications-changed",
+        refreshUnreadCount
+      );
+      window.clearInterval(interval);
+    };
+  }, [pathname]);
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur md:px-6">
@@ -78,12 +114,16 @@ export default function Topbar({
       <div className="flex items-center gap-3">
         <Link
           href={`/${role}/notifications`}
-          aria-label="Notifications"
+          aria-label={`Notifications, ${unreadNotifications} unread`}
           className="relative flex h-10 w-10 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
         >
           <BellIcon />
 
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full border-2 border-white bg-red-500" />
+          {unreadNotifications > 0 && (
+            <span className="absolute right-1.5 top-1.5 flex min-h-4 min-w-4 items-center justify-center rounded-full border-2 border-white bg-red-500 px-0.5 text-[9px] font-bold leading-none text-white">
+              {unreadNotifications > 9 ? "9+" : unreadNotifications}
+            </span>
+          )}
         </Link>
 
         <div className="hidden h-8 w-px bg-slate-200 sm:block" />

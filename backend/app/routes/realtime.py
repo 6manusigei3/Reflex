@@ -10,6 +10,7 @@ from fastapi import (
 )
 
 from app.repository import get_repository
+from app.schemas import DeliveryResponse
 from app.security import decode_access_token
 
 
@@ -42,27 +43,21 @@ def filter_deliveries_for_user(
 
     role = user["role"]
 
-    if role == "dispatcher":
+    if role in {"admin", "dispatcher"}:
         return deliveries
 
     if role == "retailer":
-        organization = user.get(
-            "organization"
-        )
-
         return [
             delivery
             for delivery in deliveries
-            if delivery["retailer"]
-            == organization
+            if delivery.get("retailer_user_id") == user["id"]
         ]
 
     if role == "rider":
         return [
             delivery
             for delivery in deliveries
-            if delivery.get("rider")
-            == user["name"]
+            if delivery.get("rider_user_id") == user["id"]
         ]
 
     return []
@@ -90,6 +85,37 @@ def snapshot_hash(
     ).hexdigest()
 
 
+def serialize_delivery_snapshot(
+    deliveries: list[dict],
+) -> list[dict]:
+    """Apply the same camelCase contract used by the REST delivery API."""
+
+    return [
+        DeliveryResponse.model_validate(
+            delivery
+        ).model_dump(
+            by_alias=True,
+            mode="json",
+        )
+        for delivery in deliveries
+    ]
+
+
+async def close_websocket_safely(
+    websocket: WebSocket,
+    *,
+    code: int,
+    reason: str = "",
+) -> None:
+    try:
+        await websocket.close(
+            code=code,
+            reason=reason,
+        )
+    except (RuntimeError, WebSocketDisconnect):
+        pass
+
+
 async def authenticate_websocket(
     websocket: WebSocket,
 ) -> dict | None:
@@ -114,20 +140,24 @@ async def authenticate_websocket(
     except (
         asyncio.TimeoutError,
         ValueError,
-        WebSocketDisconnect,
     ):
-        await websocket.close(
+        await close_websocket_safely(
+            websocket,
             code=1008,
             reason="Authentication required",
         )
 
         return None
 
+    except WebSocketDisconnect:
+        return None
+
     if (
         message.get("type")
         != "authenticate"
     ):
-        await websocket.close(
+        await close_websocket_safely(
+            websocket,
             code=1008,
             reason=(
                 "First message must "
@@ -140,7 +170,8 @@ async def authenticate_websocket(
     token = message.get("token")
 
     if not token:
-        await websocket.close(
+        await close_websocket_safely(
+            websocket,
             code=1008,
             reason="Missing access token",
         )
@@ -153,7 +184,8 @@ async def authenticate_websocket(
         )
 
     except jwt.PyJWTError:
-        await websocket.close(
+        await close_websocket_safely(
+            websocket,
             code=1008,
             reason=(
                 "Invalid or expired token"
@@ -165,7 +197,8 @@ async def authenticate_websocket(
     user_id = payload.get("sub")
 
     if not user_id:
-        await websocket.close(
+        await close_websocket_safely(
+            websocket,
             code=1008,
             reason="Invalid token",
         )
@@ -179,7 +212,8 @@ async def authenticate_websocket(
     )
 
     if not user:
-        await websocket.close(
+        await close_websocket_safely(
+            websocket,
             code=1008,
             reason=(
                 "User account not found"
@@ -188,18 +222,16 @@ async def authenticate_websocket(
 
         return None
 
-    if not user.get(
-        "is_active",
-        True,
-    ):
-        await websocket.close(
+    if user.get("account_status", "active") != "active" or not user.get("is_active", True):
+        await close_websocket_safely(
+            websocket,
             code=1008,
             reason=(
-                "User account is inactive"
+                "User account is not active"
             ),
         )
 
-        return user
+        return None
 
     return user
 
@@ -264,8 +296,14 @@ async def delivery_updates(
                 )
             )
 
+            serialized_deliveries = (
+                serialize_delivery_snapshot(
+                    visible_deliveries
+                )
+            )
+
             current_hash = snapshot_hash(
-                visible_deliveries
+                serialized_deliveries
             )
 
             if (
@@ -278,12 +316,10 @@ async def delivery_updates(
                             "delivery_snapshot",
 
                         "count":
-                            len(
-                                visible_deliveries
-                            ),
+                            len(serialized_deliveries),
 
                         "deliveries":
-                            visible_deliveries,
+                            serialized_deliveries,
                     }
                 )
 
@@ -291,9 +327,15 @@ async def delivery_updates(
                     current_hash
                 )
 
-            await asyncio.sleep(
-                POLL_INTERVAL_SECONDS
-            )
+            try:
+                await asyncio.wait_for(
+                    websocket.receive_text(),
+                    timeout=(
+                        POLL_INTERVAL_SECONDS
+                    ),
+                )
+            except asyncio.TimeoutError:
+                pass
 
     except WebSocketDisconnect:
         return
@@ -311,8 +353,9 @@ async def delivery_updates(
                 }
             )
 
-            await websocket.close(
-                code=1011
+            await close_websocket_safely(
+                websocket,
+                code=1011,
             )
 
         except Exception:

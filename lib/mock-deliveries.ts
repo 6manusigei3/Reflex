@@ -1,46 +1,25 @@
-import DashboardShell from "@/components/layout/DashboardShell";
-import NewDeliveryForm from "@/components/retailer/NewDeliveryForm";
-import PageHeader from "@/components/ui/PageHeader";
+import type { ApiDelivery } from "@/lib/api";
 
-export default function NewDeliveryPage() {
-  return (
-    <DashboardShell
-      role="retailer"
-      userName="J. Kamau"
-    >
-      <PageHeader
-        eyebrow="Retailer workspace"
-        title="Create a new delivery"
-        description="Enter the customer, package and destination information. The request will be sent to the dispatcher for rider assignment."
-      />
-
-      <NewDeliveryForm />
-    </DashboardShell>
-  );
-}
-
-Emmanuel Kipchumba Sigei
-20:42
-import type { DeliveryStatus } from "@/lib/delivery";
-
-export type RetailerDelivery = {
-  id: string;
-  customer: string;
-  phone: string;
-  pickup: string;
-  destination: string;
-  item: string;
-  rider: string;
-  riderPhone?: string;
-  status: DeliveryStatus;
-  priority: "normal" | "high" | "urgent";
-  createdAt: string;
-  updatedAt: string;
-  confirmationStatus:
-    | "not_ready"
-    | "awaiting_confirmation"
-    | "confirmed";
-};
+export type RetailerDelivery = Pick<
+  ApiDelivery,
+  | "id"
+  | "customer"
+  | "phone"
+  | "pickup"
+  | "destination"
+  | "pickupLatitude"
+  | "pickupLongitude"
+  | "destinationLatitude"
+  | "destinationLongitude"
+  | "item"
+  | "rider"
+  | "riderPhone"
+  | "status"
+  | "priority"
+  | "createdAt"
+  | "updatedAt"
+  | "confirmationStatus"
+>;
 
 export const retailerDeliveries: RetailerDelivery[] = [
   {
@@ -81,6 +60,7 @@ export const retailerDeliveries: RetailerDelivery[] = [
     destination: "Lavington, Nairobi",
     item: "Two sealed medicine packages",
     rider: "Not assigned",
+    riderPhone: null,
     status: "pending",
     priority: "urgent",
     createdAt: "26 Aug 2026, 11:42 AM",

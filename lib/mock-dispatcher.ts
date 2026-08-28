@@ -1,26 +1,21 @@
-import type { DeliveryStatus } from "@/lib/delivery";
+import type { ApiDelivery, ApiRider } from "@/lib/api";
 
-export type DispatcherRequest = {
-  id: string;
-  retailer: string;
-  customer: string;
-  phone: string;
-  pickup: string;
-  destination: string;
-  item: string;
-  priority: "normal" | "high" | "urgent";
-  status: DeliveryStatus;
-  rider: string | null;
-  createdAt: string;
-};
+export type DispatcherRequest = Pick<
+  ApiDelivery,
+  | "id"
+  | "retailer"
+  | "customer"
+  | "phone"
+  | "pickup"
+  | "destination"
+  | "item"
+  | "priority"
+  | "status"
+  | "rider"
+  | "createdAt"
+>;
 
-export type Rider = {
-  id: string;
-  name: string;
-  phone: string;
-  available: boolean;
-  activeDeliveries: number;
-};
+export type Rider = ApiRider;
 
 export const dispatcherRequests: DispatcherRequest[] = [
   {

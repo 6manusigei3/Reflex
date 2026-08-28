@@ -8,6 +8,7 @@ import StatusBadge from "@/components/ui/StatusBadge";
 
 import type { RiderDelivery } from "@/lib/mock-rider";
 import type { DeliveryStatus } from "@/lib/delivery";
+import { apiRequest, getErrorMessage, type ApiDelivery } from "@/lib/api";
 
 type RiderDeliveryScreenProps = {
   delivery: RiderDelivery;
@@ -20,6 +21,22 @@ export default function RiderDeliveryScreen({
     useState<DeliveryStatus>(
       delivery.status
     );
+  const [error, setError] = useState("");
+
+  async function updateStatus(nextStatus: DeliveryStatus) {
+    try {
+      const updated = await apiRequest<ApiDelivery>(
+        `/deliveries/${delivery.id}/status`,
+        { method: "PATCH", body: JSON.stringify({ status: nextStatus }) }
+      );
+      setStatus(updated.status);
+      setError("");
+      return true;
+    } catch (updateError) {
+      setError(getErrorMessage(updateError));
+      return false;
+    }
+  }
 
   return (
     <>
@@ -35,8 +52,11 @@ export default function RiderDeliveryScreen({
       <RiderDeliveryDetails
         delivery={delivery}
         status={status}
-        onStatusChange={setStatus}
+        onStatusChange={updateStatus}
       />
+      {error && (
+        <div role="alert" className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      )}
     </>
   );
 }
